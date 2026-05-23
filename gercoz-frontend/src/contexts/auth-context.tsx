@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       try {
         setUser(decodeToken(token));
+        document.cookie = `accessToken=${token}; path=/; max-age=900; SameSite=Strict`;
       } catch {
         localStorage.clear();
       }
@@ -39,13 +40,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await api.post('/auth/login', { email, password });
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
-    setUser(decodeToken(data.accessToken));
+    document.cookie = `accessToken=${data.accessToken}; path=/; max-age=900; SameSite=Strict`;
+    try {
+      setUser(decodeToken(data.accessToken));
+    } catch {
+      localStorage.clear();
+      document.cookie = 'accessToken=; path=/; max-age=0';
+      throw new Error('Invalid token received from server');
+    }
   };
 
   const logout = () => {
     const token = localStorage.getItem('refreshToken');
     if (token) api.post('/auth/logout', { token }).catch(() => {});
     localStorage.clear();
+    document.cookie = 'accessToken=; path=/; max-age=0';
     setUser(null);
   };
 
